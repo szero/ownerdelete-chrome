@@ -1,8 +1,12 @@
 /* globals dry, PromisePool*/
 (function() {
 "use strict";
-if (!dry) {
-  window.alert("OwnerDelete didn't load properly, please refresh the page");
+try {
+  dry;
+}
+catch (e) {
+  window.alert("OwnerDelete didn't load properly, click ok to refresh");
+  window.location.reload();
 }
 function selected() {
   return Array.from(
@@ -25,9 +29,9 @@ function $e(tag, attrs, text) {
 }
 
 function debounce(fn, to) {
-  //if (fn.length) {
-    //throw new Error("cannot have params");
-  //}
+  if (fn.length) {
+    throw new Error("cannot have params");
+  }
   to = to || 100;
   let timer;
 
@@ -35,11 +39,11 @@ function debounce(fn, to) {
     timer = 0;
   };
 
-  return function(...args) {
+  return function() {
     if (timer) {
       return;
     }
-    fn.call(this, ...args);
+    fn.call(this);
     timer = setTimeout(run.bind(this), to);
   };
 }
@@ -79,7 +83,6 @@ class ContextManager {
   }
 
   handle_selectByUser() {
-    console.log("user select " + this.user);
     dry.exts.filelistManager.filelist.filelist.forEach(
       e => e.setData("checked",
         (e.tags.user || e.tags.nick).toLowerCase() === this.user));
@@ -130,10 +133,6 @@ class ContextManager {
   }
   handle_selectByIP() {
       if (dry.exts.user.info.admin) {
-        //for (const list of lists) {
-          //list.addEventListener("contextmenu", function(e) {
-          //}
-        //}
           dry.exts.filelistManager.filelist.filelist.forEach(e => {
             e.setData("checked", e.tags.ip === this.ip);
           });
@@ -144,7 +143,6 @@ class ContextManager {
 }
 
 const $ = document.querySelector.bind(document);
-const $$ = document.querySelectorAll.bind(document);
 let isOwner = false;
 
 const loadRekts = () => {
@@ -282,7 +280,7 @@ dry.once("load", () => {
   const save_checksums = debounce(function() {
     dry.unsafeWindow.sessionStorage.setItem("ownerChecksums", JSON.stringify(Array.from(checksums)));
   }, 1000);
-  const update_name = debounce(function(e) {
+  const update_name = function(e) {
     const file = getFileFromEvent(e);
     if (!file) {
       return;
@@ -294,7 +292,7 @@ dry.once("load", () => {
     const event = new CustomEvent("updateContext", {detail: {contextType: "selectByUser", data: user}});
     document.dispatchEvent(event);
     ctxMgr.user = user.toLowerCase();
-  });
+  };
   const update_ip = function(e) {
     const file = getFileFromEvent(e);
     if (!file) {
@@ -333,6 +331,10 @@ dry.once("load", () => {
   async function getInfo(file) {
     try {
       const info = await Promise.race([dry.exts.info.getFileInfo(file.id), timeout(5000)]);
+      if (!info) {
+        file.checksum = false;
+        return;
+      }
       const {checksum} = info;
       checksums.set(file.id, checksum);
       file.checksum = checksum;
@@ -412,7 +414,10 @@ dry.once("load", () => {
         }
       }
       fe.addEventListener("click", file_click, true);
-      fe.addEventListener("contextmenu", update_name, true);
+      fe.addEventListener("mousedown", update_name, true);
+      if (dry.exts.user.info.admin) {
+        fe.addEventListener("mousedown", update_ip, true);
+      }
       ownerFiles.set(fe, file);
     }
     catch (ex) {
@@ -452,13 +457,6 @@ dry.once("load", () => {
         const ids = selected();
         dry.exts.connection.call("deleteFiles", ids);
       });
-
-      //let mi = $e("menuitem", null, "Select All Files From User");
-      //el.appendChild(mi);
-      //let user = null;
-      //const extID = "ileaiohldjadddmdclpomelamhmfjbif";
-
-
     }
     catch (ex) {
       console.error(ex);
@@ -474,6 +472,10 @@ dry.once("load", () => {
       if (!te) {
         console.warn("got a nail, but no nail");
         return;
+      }
+      te.addEventListener("mousedown", update_name);
+      if (dry.exts.user.info.admin) {
+        te.addEventListener("mousedown", update_ip);
       }
       ownerFiles.set(te, file);
     });

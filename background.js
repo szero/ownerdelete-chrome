@@ -48,21 +48,21 @@
   });
 
   chrome.contextMenus.onClicked.addListener(info => {
-    console.log(`From bg: ${info.menuItemId}`);
-    //chrome.tabs.sendMessage({contextType: info.menuItemId});
     chrome.tabs.query({active: true, currentWindow: true}, tabs => {
       chrome.tabs.sendMessage(tabs[0].id, {contextType: info.menuItemId});
     });
+    chrome.contextMenus.update("selectByIP", {visible: false});
   });
+
   chrome.runtime.onMessage.addListener(message => {
-    let title = "";
+    const opts = {};
     if (message.contextType === "selectByUser") {
-      title = `Select All Files From ${message.data}`;
+      opts.title = `Select All Files From ${message.data}`;
     }
     else {
-      title = `Select All Files For '${message.data}'`;
+      opts.title = `Select All Files For '${message.data}'`;
+      opts.visible = true;
     }
-    chrome.contextMenus.update(message.contextType, {title});
-    console.log(`From page: ${message}`);
+    chrome.contextMenus.update(message.contextType, opts);
   });
 })();
