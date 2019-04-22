@@ -1,0 +1,26 @@
+{
+  "name": "Owneredelete",
+  "permissions": ["tabs", "activeTab", "contextMenus"],
+  "version": "1.0",
+  "description": "Build an Extension!",
+  "manifest_version": 2,
+  "content_scripts": [{
+    "matches": ["https://volafile.org/r/*", "https://volafile.io/r/*"],
+    "js": ["main.js"],
+    "run_at": "document_start"
+  }],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "web_accessible_resources": [
+    "finally.js",
+    "pool.js",
+    "dry.js",
+    "ownerdelete.js"
+  ],
+  "externally_connectable": {
+    "ids": ["ileaiohldjadddmdclpomelamhmfjbif"],
+    "matches": ["https://volafile.org/r/*", "https://volafile.io/r/*"]
+  }
+}
