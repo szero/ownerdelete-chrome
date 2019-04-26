@@ -1,13 +1,30 @@
-/* globals dry, PromisePool*/
+/* globals dry, PromisePool */
+/* eslint strict: "warn" */
+/* eslint indent: "off" */
 (function() {
 "use strict";
-try {
-  dry;
-}
-catch (e) {
-  window.alert("OwnerDelete didn't load properly, click ok to refresh");
+
+const waitForDry = async function(retry) {
+  while (retry--) {
+    try {
+      return dry;
+    }
+    catch (e) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
+  throw new Error("OwnerDelete didn't load properly, click ok to refresh");
+};
+
+
+waitForDry(20).then(dry => {
+  getGoing(dry);
+}).catch(err => {
+  window.alert(err.message);
   window.location.reload();
-}
+});
+
+function getGoing(dry) {
 function selected() {
   return Array.from(
     dry.exts.filelistManager.filelist.filelist.
@@ -62,18 +79,23 @@ class ContextManager {
     this._user = null;
     this._ip = null;
   }
+
   get user() {
     return this._user;
   }
+
   set user(user) {
     this._user = user;
   }
+
   get ip() {
     return this._ip;
   }
+
   set ip(ip) {
     this._ip = ip;
   }
+
   processFromEvent(event) {
     const e = `handle_${event}`;
     const {[e]: fn = null} = this;
@@ -113,7 +135,7 @@ class ContextManager {
     dry.exts.filelistManager.filelist.filelist.forEach(e => {
       const k = e.checksum;
       if (!k) {
-        // just skip the iteration if checkusm isn't present
+      // just skip the iteration if checkusm isn't present
         return;
       }
       if (known.has(k)) {
@@ -126,18 +148,17 @@ class ContextManager {
       }
     });
   }
+
   handle_selectWhitename() {
     dry.exts.filelistManager.filelist.filelist.forEach(e => {
       e.setData("checked", !!e.tags.nick);
     });
   }
-  handle_selectByIP() {
-      if (dry.exts.user.info.admin) {
-          dry.exts.filelistManager.filelist.filelist.forEach(e => {
-            e.setData("checked", e.tags.ip === this.ip);
-          });
-      }
 
+  handle_selectByIP() {
+    dry.exts.filelistManager.filelist.filelist.forEach(e => {
+      e.setData("checked", e.tags.ip === this.ip);
+    });
   }
 
 }
@@ -174,11 +195,7 @@ dry.once("dom", () => {
           dry.exts.connection.call("timeoutChat", data.id, 3600 * 24);
           return;
         }
-        if (!options.user && rekt.has(nick)) {
-          dry.exts.connection.call("timeoutChat", data.id, 3600 * 24);
-          return;
-        }
-        if (!options.user && rekt.has(whitePurge)) {
+        if (!options.user && (rekt.has(whitePurge) || rekt.has(nick))) {
           dry.exts.connection.call("timeoutChat", data.id, 3600 * 24);
           return;
         }
@@ -264,6 +281,7 @@ dry.once("dom", () => {
 dry.once("load", () => {
 
   let last_file = null;
+  let btnel = null;
   const ownerFiles = new WeakMap();
   const pool = new PromisePool(6);
   const ctxMgr = new ContextManager(pool);
@@ -289,7 +307,7 @@ dry.once("load", () => {
     if (!user) {
       return;
     }
-    const event = new CustomEvent("updateContext", {detail: {contextType: "selectByUser", data: user}});
+    const event = new CustomEvent("updateContext", {detail: {contextType: "selectByUser", data: user, isOwner}});
     document.dispatchEvent(event);
     ctxMgr.user = user.toLowerCase();
   };
@@ -302,7 +320,7 @@ dry.once("load", () => {
     if (!ip) {
       return;
     }
-    const event = new CustomEvent("updateContext", {detail: {contextType: "selectByIP", data: ip}});
+    const event = new CustomEvent("updateContext", {detail: {contextType: "selectByIP", data: ip, isOwner}});
     document.dispatchEvent(event);
     ctxMgr.ip = ip;
 
@@ -415,9 +433,9 @@ dry.once("load", () => {
       }
       fe.addEventListener("click", file_click, true);
       fe.addEventListener("mousedown", update_name, true);
-      if (dry.exts.user.info.admin) {
+      //if (dry.exts.user.info.admin) {
         fe.addEventListener("mousedown", update_ip, true);
-      }
+      //}
       ownerFiles.set(fe, file);
     }
     catch (ex) {
@@ -425,11 +443,32 @@ dry.once("load", () => {
     }
   };
 
-  const createButtons = function(isOwnerOrAdminOrJanitor) {
-    if (isOwner || !isOwnerOrAdminOrJanitor) {
+  const createButtons = function(isOwnerOrAdminOrJanitor, isAdmin) {
+    console.log(isOwnerOrAdminOrJanitor);
+    let event = null;
+    if (isOwnerOrAdminOrJanitor) {
+      isOwner = true;
+      if (btnel) {
+        btnel.style.display = "inline";
+      }
+      event = new CustomEvent("updateContext", {detail: {setTab: true}});
+      document.dispatchEvent(event);
+    }
+    else {
+      isOwner = false;
+      if (btnel) {
+        btnel.style.display = "none";
+      }
+      event = new CustomEvent("updateContext", {detail: {setTab: false}});
+      document.dispatchEvent(event);
+    }
+    if (isAdmin) {
+      event = new CustomEvent("updateContext", {detail: {contextType: "selectByIP", isOwner}});
+      document.dispatchEvent(event);
+    }
+    if (btnel || !isOwnerOrAdminOrJanitor) {
       return;
     }
-    isOwner = true;
 
     document.addEventListener("contextRunner", e => {
       const {contextType} = e.detail;
@@ -438,29 +477,24 @@ dry.once("load", () => {
       }
     });
 
-    try {
-      const cont = $("#upload_container");
-      const btnel = $e("label", {
-        for: "dolos_delete_input",
-        id: "dolos_deleteButton",
-        class: "button",
-        style: "margin-right: 0.5em",
-      });
-      btnel.appendChild($e("span", {
-        class: "icon-trash"
-      }));
-      btnel.appendChild($e("span", {
-        class: "on_small_header"
-      }, "Delete"));
-      cont.insertBefore(btnel, cont.firstChild);
-      btnel.addEventListener("click", function() {
-        const ids = selected();
-        dry.exts.connection.call("deleteFiles", ids);
-      });
-    }
-    catch (ex) {
-      console.error(ex);
-    }
+    const cont = $("#upload_container");
+    btnel = $e("label", {
+      for: "dolos_delete_input",
+      id: "dolos_deleteButton",
+      class: "button",
+      style: "margin-right: 0.5em",
+    });
+    btnel.appendChild($e("span", {
+      class: "icon-trash"
+    }));
+    btnel.appendChild($e("span", {
+      class: "on_small_header"
+    }, "Delete"));
+    cont.insertBefore(btnel, cont.firstChild);
+    btnel.addEventListener("click", function() {
+      const ids = selected();
+      dry.exts.connection.call("deleteFiles", ids);
+    });
 
     dry.exts.filelistManager.on("fileAdded", prepare_file);
     dry.exts.filelistManager.on("fileUpdated", prepare_file);
@@ -474,16 +508,17 @@ dry.once("load", () => {
         return;
       }
       te.addEventListener("mousedown", update_name);
-      if (dry.exts.user.info.admin) {
+      //if (dry.exts.user.info.admin) {
         te.addEventListener("mousedown", update_ip);
-      }
+      //}
       ownerFiles.set(te, file);
     });
     dry.exts.filelistManager.filelist.filelist.forEach(prepare_file);
   };
-
+  const cb = arg => createButtons(arg, true);
   dry.exts.user.on("info_owner", createButtons);
-  dry.exts.user.on("info_admin", createButtons);
+  dry.exts.user.on("info_admin", cb);
   dry.exts.user.on("info_janitor", createButtons);
 });
+}
 })();
