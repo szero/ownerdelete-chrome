@@ -13,18 +13,11 @@ const waitForDry = async function(retry) {
       await new Promise(r => setTimeout(r, 100));
     }
   }
-  throw new Error("OwnerDelete didn't load properly, click ok to refresh");
+  throw new Error("OwnerDelete didn't load properly, click OK to refresh");
 };
 
 
-waitForDry(20).then(dry => {
-  getGoing(dry);
-}).catch(err => {
-  window.alert(err.message);
-  window.location.reload();
-});
-
-function getGoing(dry) {
+waitForDry(30).then(dry => {
 function selected() {
   return Array.from(
     dry.exts.filelistManager.filelist.filelist.
@@ -160,7 +153,6 @@ class ContextManager {
       e.setData("checked", e.tags.ip === this.ip);
     });
   }
-
 }
 
 const $ = document.querySelector.bind(document);
@@ -279,7 +271,6 @@ dry.once("dom", () => {
 });
 
 dry.once("load", () => {
-
   let last_file = null;
   let btnel = null;
   const ownerFiles = new WeakMap();
@@ -444,7 +435,6 @@ dry.once("load", () => {
   };
 
   const createButtons = function(isOwnerOrAdminOrJanitor, isAdmin) {
-    console.log(isOwnerOrAdminOrJanitor);
     let event = null;
     if (isOwnerOrAdminOrJanitor) {
       isOwner = true;
@@ -520,5 +510,8 @@ dry.once("load", () => {
   dry.exts.user.on("info_admin", cb);
   dry.exts.user.on("info_janitor", createButtons);
 });
-}
+}).catch(err => {
+  window.alert(err.message);
+  window.location.reload();
+});
 })();
