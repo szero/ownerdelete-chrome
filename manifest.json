@@ -1,7 +1,7 @@
 {
   "name": "Owneredelete",
   "permissions": [
-    "tabs", "activeTab", "contextMenus",
+    "tabs", "contextMenus", "storage",
     "https://volafile.org/r/*", "https://volafile.io/r/*"
   ],
   "version": "1.0.0",

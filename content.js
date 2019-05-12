@@ -34,17 +34,17 @@ const handleContext = function(e) {
 const handleRunner = function(msg) {
   heartbeat(
     function() { // hearbeat success
-      const {contextType} = msg;
-      if (contextType) {
-        const event = new CustomEvent("contextRunner", {detail: {contextType}});
-        document.dispatchEvent(event);
-      }
+      const event = new CustomEvent("contextRunner", {detail: msg});
+      document.dispatchEvent(event);
     },
     function() { // hearbeat failure
       chrome.runtime.onMessage.removeListener(handleRunner);
-      document.removeEventListener("updateContext", handleContext);
+      document.removeEventListener("sendToBackground", handleContext);
     }
   );
 };
-chrome.runtime.onMessage.addListener(handleRunner);
-document.addEventListener('updateContext', handleContext);
+const addListeners = function() {
+  chrome.runtime.onMessage.addListener(handleRunner);
+  document.addEventListener('sendToBackground', handleContext);
+};
+window.addEventListener('load', addListeners, true);

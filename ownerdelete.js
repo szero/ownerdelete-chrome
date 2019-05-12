@@ -97,6 +97,11 @@ class ContextManager {
     }
   }
 
+  handle_queryOwner() {
+    const event = new CustomEvent("sendToBackground", {detail: {ownerCheck: isOwner}});
+    document.dispatchEvent(event);
+  }
+
   handle_selectByUser() {
     dry.exts.filelistManager.filelist.filelist.forEach(
       e => e.setData("checked",
@@ -273,6 +278,8 @@ dry.once("dom", () => {
 dry.once("load", () => {
   let last_file = null;
   let btnel = null;
+  let preventAdminUpdate = false;
+  let preventUserUpdate = false;
   const ownerFiles = new WeakMap();
   const pool = new PromisePool(6);
   const ctxMgr = new ContextManager(pool);
@@ -289,32 +296,50 @@ dry.once("load", () => {
   const save_checksums = debounce(function() {
     dry.unsafeWindow.sessionStorage.setItem("ownerChecksums", JSON.stringify(Array.from(checksums)));
   }, 1000);
+  const prevent_next_mouseover = function() {
+    // When you enter chrome context menu with right click, it suppresses all the event handlers
+    // however, it doesn't prevent the over events after the click, so we have to suppress the next over
+    // event that happens after left click in context menu to not overwrite our user and ip
+    preventUserUpdate = preventAdminUpdate = true;
+  };
   const update_name = function(e) {
+    if (preventUserUpdate) {
+      return preventUserUpdate = false;
+    }
     const file = getFileFromEvent(e);
     if (!file) {
-      return;
+      return false;
     }
     const user = file.tags.user || file.tags.nick;
     if (!user) {
-      return;
+      return false;
     }
-    const event = new CustomEvent("updateContext", {detail: {contextType: "selectByUser", data: user, isOwner}});
+    const event = new CustomEvent(
+      "sendToBackground", {detail: {contextType: "selectByUser", data: user}}
+    );
     document.dispatchEvent(event);
     ctxMgr.user = user.toLowerCase();
   };
   const update_ip = function(e) {
+    if (!dry.exts.user.info.admin) {
+      return false;
+    }
+    if (preventAdminUpdate) {
+      return preventAdminUpdate = false;
+    }
     const file = getFileFromEvent(e);
     if (!file) {
-      return;
+      return false;
     }
     const ip = file.tags.ip || null;
     if (!ip) {
-      return;
+      return false;
     }
-    const event = new CustomEvent("updateContext", {detail: {contextType: "selectByIP", data: ip, isOwner}});
+    const event = new CustomEvent(
+      "sendToBackground", {detail: {contextType: "selectByIP", data: ip}}
+    );
     document.dispatchEvent(event);
     ctxMgr.ip = ip;
-
   };
   const find_file = function(file) {
     const {id} = file;
@@ -423,10 +448,9 @@ dry.once("load", () => {
         }
       }
       fe.addEventListener("click", file_click, true);
-      fe.addEventListener("mousedown", update_name, true);
-      //if (dry.exts.user.info.admin) {
-        fe.addEventListener("mousedown", update_ip, true);
-      //}
+      fe.addEventListener("mouseover", update_name, true);
+      fe.addEventListener("mouseover", update_ip, true);
+      fe.addEventListener("contextmenu", prevent_next_mouseover, true);
       ownerFiles.set(fe, file);
     }
     catch (ex) {
@@ -434,14 +458,14 @@ dry.once("load", () => {
     }
   };
 
-  const createButtons = function(isOwnerOrAdminOrJanitor, isAdmin) {
+  const createButtons = function(isOwnerOrAdminOrJanitor) {
     let event = null;
     if (isOwnerOrAdminOrJanitor) {
       isOwner = true;
       if (btnel) {
         btnel.style.display = "inline";
       }
-      event = new CustomEvent("updateContext", {detail: {setTab: true}});
+      event = new CustomEvent("sendToBackground", {detail: {setTab: true}});
       document.dispatchEvent(event);
     }
     else {
@@ -449,11 +473,7 @@ dry.once("load", () => {
       if (btnel) {
         btnel.style.display = "none";
       }
-      event = new CustomEvent("updateContext", {detail: {setTab: false}});
-      document.dispatchEvent(event);
-    }
-    if (isAdmin) {
-      event = new CustomEvent("updateContext", {detail: {contextType: "selectByIP", isOwner}});
+      event = new CustomEvent("sendToBackground", {detail: {setTab: false}});
       document.dispatchEvent(event);
     }
     if (btnel || !isOwnerOrAdminOrJanitor) {
@@ -461,9 +481,9 @@ dry.once("load", () => {
     }
 
     document.addEventListener("contextRunner", e => {
-      const {contextType} = e.detail;
-      if (contextType) {
-        ctxMgr.processFromEvent(contextType);
+      const {data} = e.detail;
+      if (data) {
+        ctxMgr.processFromEvent(data);
       }
     });
 
@@ -497,17 +517,15 @@ dry.once("load", () => {
         console.warn("got a nail, but no nail");
         return;
       }
-      te.addEventListener("mousedown", update_name);
-      //if (dry.exts.user.info.admin) {
-        te.addEventListener("mousedown", update_ip);
-      //}
+      te.addEventListener("mouseover", update_name, true);
+      te.addEventListener("mouseover", update_ip, true);
+      te.addEventListener("contextmenu", prevent_next_mouseover, true);
       ownerFiles.set(te, file);
     });
     dry.exts.filelistManager.filelist.filelist.forEach(prepare_file);
   };
-  const cb = arg => createButtons(arg, true);
   dry.exts.user.on("info_owner", createButtons);
-  dry.exts.user.on("info_admin", cb);
+  dry.exts.user.on("info_admin", createButtons);
   dry.exts.user.on("info_janitor", createButtons);
 });
 }).catch(err => {
