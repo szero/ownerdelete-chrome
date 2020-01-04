@@ -25,6 +25,7 @@ const forceContextUpdate = function(ctxType, opts, retries) {
     }
   });
 };
+
 const documentURLs = ["https://volafile.org/r/*", "https://volafile.io/r/*"];
 const targetURLs = ["https://volafile.org/get/*", "https://volafile.io/get/*"];
 
@@ -74,8 +75,14 @@ class Handler {
       await setContextCreation(false);
     }
   }
-
 }
+
+function ignoreError() {
+  if (chrome.runtime.lastError) {
+    // suppress error while creating menu item with existing id
+  }
+}
+
 const createContexts = async function() {
   if (!await getContextCreation()) {
     chrome.contextMenus.create({
@@ -86,7 +93,7 @@ const createContexts = async function() {
       "visible": true,
       "documentUrlPatterns": documentURLs,
       "targetUrlPatterns": targetURLs
-    });
+    }, ignoreError);
     chrome.contextMenus.create({
       "title": "Select All",
       "id": "selectAll",
@@ -95,7 +102,7 @@ const createContexts = async function() {
       "visible": true,
       "documentUrlPatterns": documentURLs,
       "targetUrlPatterns": targetURLs
-    });
+    }, ignoreError);
     chrome.contextMenus.create({
       "title": "Select None",
       "id": "selectNone",
@@ -104,7 +111,7 @@ const createContexts = async function() {
       "visible": true,
       "documentUrlPatterns": documentURLs,
       "targetUrlPatterns": targetURLs
-    });
+    }, ignoreError);
     chrome.contextMenus.create({
       "title": "Invert Selection",
       "id": "invertSelection",
@@ -113,7 +120,7 @@ const createContexts = async function() {
       "visible": true,
       "documentUrlPatterns": documentURLs,
       "targetUrlPatterns": targetURLs
-    });
+    }, ignoreError);
     chrome.contextMenus.create({
       "title": "Select Duplicate Files",
       "id": "selectDupes",
@@ -122,7 +129,7 @@ const createContexts = async function() {
       "visible": true,
       "documentUrlPatterns": documentURLs,
       "targetUrlPatterns": targetURLs
-    });
+    }, ignoreError);
     chrome.contextMenus.create({
       "title": "Select All Whitename Files",
       "id": "selectWhitename",
@@ -131,7 +138,7 @@ const createContexts = async function() {
       "visible": true,
       "documentUrlPatterns": documentURLs,
       "targetUrlPatterns": targetURLs
-    });
+    }, ignoreError);
     chrome.contextMenus.create({
       "title": "Select All Files For IP",
       "id": "selectByIP",
@@ -140,7 +147,7 @@ const createContexts = async function() {
       "visible": false,
       "documentUrlPatterns": documentURLs,
       "targetUrlPatterns": targetURLs
-    });
+    }, ignoreError);
     await setContextCreation(true);
   }
 };

@@ -4,20 +4,6 @@
 (function() {
 "use strict";
 
-const waitForDry = async function(retry) {
-  while (retry--) {
-    try {
-      return dry;
-    }
-    catch (e) {
-      await new Promise(r => setTimeout(r, 100));
-    }
-  }
-  throw new Error("OwnerDelete didn't load properly, click OK to refresh");
-};
-
-
-waitForDry(30).then(dry => {
 function selected() {
   return Array.from(
     dry.exts.filelistManager.filelist.filelist.
@@ -527,9 +513,5 @@ dry.once("load", () => {
   dry.exts.user.on("info_owner", createButtons);
   dry.exts.user.on("info_admin", createButtons);
   dry.exts.user.on("info_janitor", createButtons);
-});
-}).catch(err => {
-  window.alert(err.message);
-  window.location.reload();
 });
 })();
